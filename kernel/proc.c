@@ -81,7 +81,7 @@ allocpid() {
   pid = nextpid;
   nextpid = nextpid + 1;
   release(&pid_lock);
-
+    
   return pid;
 }
 
@@ -126,6 +126,8 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  p->kama_syscall_trace = 0; // syscall trace mask
 
   return p;
 }
@@ -296,6 +298,8 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&np->lock);
+
+  np->kama_syscall_trace = p->kama_syscall_trace; // copy syscall trace mask
 
   return pid;
 }
@@ -692,4 +696,17 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+void kama_procnum(uint64 *dst){
+  *dst = 0;
+  struct  proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){     //proc[NPROC]记录了所有的进程，而每一个进程有一个state属性，通过这个属性判断是否空闲
+    if(p->state != UNUSED){
+      (*dst)++;
+    }
+  }
+  
 }

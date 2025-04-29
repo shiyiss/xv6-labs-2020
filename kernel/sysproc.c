@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -94,4 +95,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64 sys_trace(void){
+      int mask;
+
+      if(argint(0, &mask) < 0)
+        return -1;
+      
+      myproc()->kama_syscall_trace = mask; 
+      return 0;
+}
+
+//收集系统信息
+uint64 sys_sysinfo(void){
+    struct sysinfo info;
+
+    //分解实现获取空闲内存和进程数
+    kama_freebytes(&info.freemem);    //函数和内存相关，故在kernel/kalloc.c中实现
+    kama_procnum(&info.nproc);        //函数和进程相关，故在kernel/proc.c中实现
+
+    //因为这两个函数不像系统调用那样使用了extern全局声明，
+    //kernel/sysproc.c中的sys_sysinfo是找不到这两个函数的。这里要在内核头文件kernel/defs.h声明这两个函数
+
+    //获取用户虚拟地址
+    uint64 dstaddr;
+    argaddr(0, &dstaddr);
+
+    //从内核空间拷贝数据到用户空间
+    if(copyout(myproc()->pagetable, dstaddr, (char *)&info, sizeof(info)) < 0){
+        return -1;
+    }
+    return 0;
 }
